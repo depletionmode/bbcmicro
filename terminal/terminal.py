@@ -86,6 +86,7 @@ class BbcMicroMode7TextEdit(QTextEdit):
     
     def insertChar(self, c):
         c = ord(c)
+        print(c)
         alpha_numeric = range(20, 126)
 
         text_color_control_codes = {
@@ -126,7 +127,7 @@ class BbcMicroMode7TextEdit(QTextEdit):
                 self.charConsumer(c)
 
             self.charConsumer(ord('\r'))
-            self.charConsumer(ord('\n'))
+            #self.charConsumer(ord('\n'))
 
             self.history.flush()
 
