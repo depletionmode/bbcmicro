@@ -4,6 +4,10 @@ from serial import Serial
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
+from PyQt5.QtDBus import *
+
+import signal
+signal.signal(signal.SIGINT, signal.SIG_DFL) #
 
 class CommandHistory(QObject):
     selected = pyqtSignal(object)
@@ -135,6 +139,9 @@ class BbcMicroMode7TextEdit(QTextEdit):
             self.history.scrollUp()
         elif e.key() == Qt.Key_Down:
             self.history.scrollDown()
+        elif e.key() == Qt.Key_Delete:
+            self.charConsumer(127)
+            self.textCursor().deletePreviousChar()
         else:
             self.charConsumer(e.key())
             self.history.recordChar(e.key())
@@ -155,6 +162,28 @@ class SerialReadThread(QThread):
             c = self.ser.read(1)
             self.char_received.emit(c)
 
+class QDBusServer(QObject):
+    Q_CLASSINFO("D-Bus Interface", "org.bbcmicro.terminal")
+    Q_CLASSINFO("D-Bus Introspection",
+    '  <interface name="org.bbcmicro.terminal">\n'
+    '    <method name="cmd">\n'
+    '      <arg direction="in" type="s" name="cmd"/>\n'
+    '    </method>\n'
+    '  </interface>\n')
+
+    def __init__(self, cmd_fcn):
+        QObject.__init__(self)
+
+        self.cmd_fcn = cmd_fcn
+
+    @pyqtSlot(str, result=str)
+    def cmd(self, cmd):
+        for c in cmd:
+            c = ord(c)
+            print(c)
+            self.cmd_fcn(c)
+        self.cmd_fcn(ord('\r'))
+
 class MainWindow(QMainWindow):
     def __init__(self, ser):
         QMainWindow.__init__(self)
@@ -170,6 +199,14 @@ class MainWindow(QMainWindow):
 
         self.historyLabel = QLabel(self)
         self.historyLabel.show()
+
+        #self.dbus_conn = QDBusConnection.connectToBus('tcp:host=localhost, port=54354', 'bbcmicroTerminalBus')
+        #self.dbus_inf = QDBusInterface('org.bbcmicro.terminal', '/org/bbcmicro/terminal', '')
+
+        self.dbus_srv = QDBusServer(self.charConsumer)
+        self.dbus_bus = QDBusConnection.systemBus()
+        print(self.dbus_bus.registerObject('/', self.dbus_srv, QDBusConnection.ExportAllSlots))
+        print(self.dbus_bus.registerService('org.bbcmicro.terminal'))
 
     def loop(self):
         self.threads = []
@@ -192,7 +229,7 @@ class MainWindow(QMainWindow):
         b = bytearray(1)
         b[0] = c
         ser.write(b)
-        
+
 ser = Serial('/dev/ttyUSB0', 9600)
 
 app = QApplication([])
