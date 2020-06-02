@@ -92,6 +92,7 @@ class BbcMicroMode7TextEdit(QTextEdit):
         c = ord(c)
         print(c)
         alpha_numeric = range(20, 126)
+        delete_key = 127
 
         text_color_control_codes = {
             129 : Qt.red,
@@ -121,6 +122,9 @@ class BbcMicroMode7TextEdit(QTextEdit):
         if c == 13:
             self.append('')
             return
+
+        if c == delete_key:
+            self.textCursor().deletePreviousChar()
             
         #print('Unhandled char: {}'.format(c))
 
@@ -141,7 +145,6 @@ class BbcMicroMode7TextEdit(QTextEdit):
             self.history.scrollDown()
         elif e.key() == Qt.Key_Delete:
             self.charConsumer(127)
-            self.textCursor().deletePreviousChar()
         else:
             self.charConsumer(e.key())
             self.history.recordChar(e.key())
